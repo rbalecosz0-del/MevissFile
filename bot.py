@@ -6,7 +6,7 @@ import secrets
 import os
 
 
-TOKEN = "13618647:3F3cWJq9rFLgbsUG0wTk7EgHkG7sXp-6BAv"
+TOKEN = "13618647:3F3oNOsiotXiBEUk8BadfcScHVPh8nZWcyz"
 
 API = f"https://api.safew.bot/bot{TOKEN}"
 
@@ -14,25 +14,15 @@ DB = "data.json"
 
 
 
-# =================
-# DATABASE
-# =================
-
 def load():
-
-    if not os.path.exists(DB):
-        return {}
-
     try:
         return json.load(open(DB))
-
     except:
         return {}
 
 
 
 def save(data):
-
     json.dump(
         data,
         open(DB,"w"),
@@ -40,10 +30,6 @@ def save(data):
     )
 
 
-
-# =================
-# CODE
-# =================
 
 def make_code():
 
@@ -65,13 +51,9 @@ def make_code():
 
 
 
-# =================
-# MESSAGE
-# =================
-
 def send(chat,text):
 
-    r = requests.post(
+    requests.post(
         API+"/sendMessage",
         json={
             "chat_id":chat,
@@ -79,60 +61,25 @@ def send(chat,text):
         }
     )
 
-    print(r.text)
 
-
-
-# =================
-# SEND FILE
-# =================
 
 def send_file(chat,data):
 
     fid = data["file_id"]
-    tipe = data["type"]
 
-
-    if tipe == "photo":
-
-        url = "/sendPhoto"
-        key = "photo"
-
-
-    elif tipe == "video":
-
-        url = "/sendVideo"
-        key = "video"
-
-
-    else:
-
-        url = "/sendDocument"
-        key = "document"
-
-
-
-    r = requests.post(
-        API+url,
+    requests.post(
+        API+"/sendDocument",
         json={
             "chat_id":chat,
-            key:fid
+            "document":fid
         }
     )
 
 
-    print("SEND FILE:")
-    print(r.text)
 
+def detect_file(msg):
 
-
-# =================
-# FILE DETECT
-# =================
-
-def check_file(msg):
-
-
+    # document
     if "document" in msg:
 
         return {
@@ -141,7 +88,7 @@ def check_file(msg):
         }
 
 
-
+    # photo
     if "photo" in msg:
 
         return {
@@ -150,7 +97,7 @@ def check_file(msg):
         }
 
 
-
+    # video
     if "video" in msg:
 
         return {
@@ -163,21 +110,14 @@ def check_file(msg):
 
 
 
-# =================
-# RUN
-# =================
-
 offset = 0
 
-
-print("MEVISSBOT ONLINE")
+print("MEVISSBOT ONLINE", flush=True)
 
 
 while True:
 
-
     try:
-
 
         updates = requests.get(
             API+"/getUpdates",
@@ -190,12 +130,10 @@ while True:
 
         for update in updates.get("result",[]):
 
-
             offset = update.get(
                 "update_id",
                 0
             ) + 1
-
 
 
             msg = (
@@ -204,6 +142,13 @@ while True:
             )
 
 
+            # DEBUG SAFEW
+            print(
+                "UPDATE:",
+                json.dumps(msg),
+                flush=True
+            )
+
 
             chat = msg.get(
                 "chat",
@@ -211,10 +156,8 @@ while True:
             ).get("id")
 
 
-
             if not chat:
                 continue
-
 
 
             text = msg.get(
@@ -223,9 +166,7 @@ while True:
             )
 
 
-
             if text == "/start":
-
 
                 send(
                     chat,
@@ -233,45 +174,29 @@ while True:
 
 📤 Kirim file
 
-📥 Ambil file:
-GET kode
-
-Contoh:
-GET mevissbot_8v_3p_0d_xxxxx"""
+📥 Ambil:
+GET kode"""
                 )
 
 
-
             elif text.startswith("GET "):
-
 
                 code = text.replace(
                     "GET ",
                     ""
                 )
 
-
                 db = load()
 
 
-
                 if code in db:
-
-
-                    send(
-                        chat,
-                        "⏳ Mengirim file..."
-                    )
-
 
                     send_file(
                         chat,
                         db[code]
                     )
 
-
                 else:
-
 
                     send(
                         chat,
@@ -283,8 +208,7 @@ GET mevissbot_8v_3p_0d_xxxxx"""
             else:
 
 
-                file = check_file(msg)
-
+                file = detect_file(msg)
 
 
                 if file:
@@ -292,20 +216,16 @@ GET mevissbot_8v_3p_0d_xxxxx"""
 
                     code = make_code()
 
-
                     db = load()
 
-
                     db[code] = file
-
 
                     save(db)
 
 
-
                     send(
                         chat,
-f"""✅ File tersimpan
+f"""✅ File berhasil disimpan
 
 🔑 CODE:
 
@@ -322,9 +242,9 @@ f"""✅ File tersimpan
 
         print(
             "ERROR:",
-            e
+            e,
+            flush=True
         )
-
 
 
     time.sleep(2)
