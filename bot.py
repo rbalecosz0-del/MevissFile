@@ -6,7 +6,7 @@ import secrets
 import os
 
 
-TOKEN = "13618647:3F3oNOsiotXiBEUk8BadfcScHVPh8nZWcyz"
+TOKEN = os.getenv("TOKEN")
 
 API = f"https://api.safew.bot/bot{TOKEN}"
 
@@ -14,42 +14,53 @@ DB = "data.json"
 
 
 
+# =====================
+# DATABASE
+# =====================
+
 def load():
+
     try:
-        return json.load(open(DB))
+        with open(DB,"r") as f:
+            return json.load(f)
+
     except:
         return {}
 
 
 
 def save(data):
-    json.dump(
-        data,
-        open(DB,"w"),
-        indent=2
-    )
+
+    with open(DB,"w") as f:
+        json.dump(
+            data,
+            f,
+            indent=2
+        )
 
 
+
+# =====================
+# CODE GENERATOR
+# =====================
 
 def make_code():
 
     chars = string.ascii_lowercase + string.digits
 
     return (
-        "mevissbot_"
-        + secrets.choice(chars)
-        + "v_"
-        + secrets.choice(chars)
-        + "p_"
-        + secrets.choice(chars)
-        + "d_"
+        "meviss_"
         + "".join(
             secrets.choice(chars)
-            for i in range(16)
+            for i in range(24)
         )
     )
 
 
+
+# =====================
+# SEND MESSAGE
+# =====================
 
 def send(chat,text):
 
@@ -58,28 +69,59 @@ def send(chat,text):
         json={
             "chat_id":chat,
             "text":text
-        }
+        },
+        timeout=20
     )
 
 
+
+# =====================
+# SEND FILE
+# =====================
 
 def send_file(chat,data):
 
-    fid = data["file_id"]
+    if data["type"] == "document":
 
-    requests.post(
-        API+"/sendDocument",
-        json={
-            "chat_id":chat,
-            "document":fid
-        }
-    )
+        requests.post(
+            API+"/sendDocument",
+            json={
+                "chat_id":chat,
+                "document":data["file_id"]
+            }
+        )
 
 
+    elif data["type"] == "photo":
+
+        requests.post(
+            API+"/sendPhoto",
+            json={
+                "chat_id":chat,
+                "photo":data["file_id"]
+            }
+        )
+
+
+    elif data["type"] == "video":
+
+        requests.post(
+            API+"/sendVideo",
+            json={
+                "chat_id":chat,
+                "video":data["file_id"]
+            }
+        )
+
+
+
+# =====================
+# DETECT FILE
+# =====================
 
 def detect_file(msg):
 
-    # document
+
     if "document" in msg:
 
         return {
@@ -88,7 +130,7 @@ def detect_file(msg):
         }
 
 
-    # photo
+
     if "photo" in msg:
 
         return {
@@ -97,7 +139,7 @@ def detect_file(msg):
         }
 
 
-    # video
+
     if "video" in msg:
 
         return {
@@ -106,58 +148,73 @@ def detect_file(msg):
         }
 
 
+
     return None
 
 
 
+# =====================
+# BOT LOOP
+# =====================
+
+
 offset = 0
 
-print("MEVISSBOT ONLINE", flush=True)
+
+print(
+    "🔥 MEVISSBOT ONLINE",
+    flush=True
+)
+
 
 
 while True:
 
+
     try:
 
-        updates = requests.get(
+
+        result = requests.get(
             API+"/getUpdates",
             params={
-                "offset":offset
-            }
+                "offset":offset,
+                "timeout":30
+            },
+            timeout=40
         ).json()
 
 
 
-        for update in updates.get("result",[]):
-
-            offset = update.get(
-                "update_id",
-                0
-            ) + 1
+        for update in result.get(
+            "result",
+            []
+        ):
 
 
-            msg = (
-                update.get("message")
-                or update
+            offset = (
+                update["update_id"]
+                + 1
             )
 
 
-            # DEBUG SAFEW
-            print(
-                "UPDATE:",
-                json.dumps(msg),
-                flush=True
+
+            msg = update.get(
+                "message",
+                {}
             )
 
 
             chat = msg.get(
                 "chat",
                 {}
-            ).get("id")
+            ).get(
+                "id"
+            )
 
 
             if not chat:
                 continue
+
 
 
             text = msg.get(
@@ -166,37 +223,58 @@ while True:
             )
 
 
+
+            # START
+
             if text == "/start":
+
 
                 send(
                     chat,
-"""🔥 MevissBOT AKTIF
+                    """
+🔥 MevissBOT AKTIF
 
-📤 Kirim file
+📤 Kirim file apa saja
 
-📥 Ambil:
-GET kode"""
+Bot akan memberikan kode
+
+📥 Ambil file:
+
+GET kode
+"""
                 )
 
 
-            elif text.startswith("GET "):
+
+            # GET FILE
+
+            elif text.startswith(
+                "GET "
+            ):
+
 
                 code = text.replace(
                     "GET ",
                     ""
-                )
+                ).strip()
+
+
 
                 db = load()
 
 
+
                 if code in db:
+
 
                     send_file(
                         chat,
                         db[code]
                     )
 
+
                 else:
+
 
                     send(
                         chat,
@@ -205,10 +283,15 @@ GET kode"""
 
 
 
+            # UPLOAD FILE
+
             else:
 
 
-                file = detect_file(msg)
+                file = detect_file(
+                    msg
+                )
+
 
 
                 if file:
@@ -216,16 +299,22 @@ GET kode"""
 
                     code = make_code()
 
+
+
                     db = load()
 
+
                     db[code] = file
+
 
                     save(db)
 
 
+
                     send(
                         chat,
-f"""✅ File berhasil disimpan
+                        f"""
+✅ File berhasil disimpan
 
 🔑 CODE:
 
@@ -233,18 +322,22 @@ f"""✅ File berhasil disimpan
 
 📥 GET {code}
 
-🤖 MevissBOT"""
+🤖 MevissBOT
+"""
                     )
 
 
 
+
     except Exception as e:
+
 
         print(
             "ERROR:",
             e,
             flush=True
         )
+
 
 
     time.sleep(2)
