@@ -13,6 +13,7 @@ API = f"https://api.safew.bot/bot{TOKEN}"
 DB = "data.json"
 
 
+
 # =================
 # DATABASE
 # =================
@@ -41,7 +42,7 @@ def save(data):
 
 
 # =================
-# CREATE CODE
+# CODE
 # =================
 
 def make_code():
@@ -65,18 +66,20 @@ def make_code():
 
 
 # =================
-# SEND MESSAGE
+# MESSAGE
 # =================
 
 def send(chat,text):
 
-    requests.post(
-        API + "/sendMessage",
+    r = requests.post(
+        API+"/sendMessage",
         json={
             "chat_id":chat,
             "text":text
         }
     )
+
+    print(r.text)
 
 
 
@@ -87,49 +90,48 @@ def send(chat,text):
 def send_file(chat,data):
 
     fid = data["file_id"]
-
     tipe = data["type"]
 
 
     if tipe == "photo":
 
-        requests.post(
-            API+"/sendPhoto",
-            json={
-                "chat_id":chat,
-                "photo":fid
-            }
-        )
+        url = "/sendPhoto"
+        key = "photo"
 
 
     elif tipe == "video":
 
-        requests.post(
-            API+"/sendVideo",
-            json={
-                "chat_id":chat,
-                "video":fid
-            }
-        )
+        url = "/sendVideo"
+        key = "video"
 
 
     else:
 
-        requests.post(
-            API+"/sendDocument",
-            json={
-                "chat_id":chat,
-                "document":fid
-            }
-        )
+        url = "/sendDocument"
+        key = "document"
+
+
+
+    r = requests.post(
+        API+url,
+        json={
+            "chat_id":chat,
+            key:fid
+        }
+    )
+
+
+    print("SEND FILE:")
+    print(r.text)
 
 
 
 # =================
-# DETECT FILE
+# FILE DETECT
 # =================
 
 def check_file(msg):
+
 
     if "document" in msg:
 
@@ -139,12 +141,14 @@ def check_file(msg):
         }
 
 
+
     if "photo" in msg:
 
         return {
             "type":"photo",
             "file_id":msg["photo"][-1]["file_id"]
         }
+
 
 
     if "video" in msg:
@@ -160,17 +164,20 @@ def check_file(msg):
 
 
 # =================
-# START BOT
+# RUN
 # =================
 
 offset = 0
+
 
 print("MEVISSBOT ONLINE")
 
 
 while True:
 
+
     try:
+
 
         updates = requests.get(
             API+"/getUpdates",
@@ -180,12 +187,15 @@ while True:
         ).json()
 
 
+
         for update in updates.get("result",[]):
+
 
             offset = update.get(
                 "update_id",
                 0
             ) + 1
+
 
 
             msg = (
@@ -194,10 +204,12 @@ while True:
             )
 
 
+
             chat = msg.get(
                 "chat",
                 {}
             ).get("id")
+
 
 
             if not chat:
@@ -214,12 +226,15 @@ while True:
 
             if text == "/start":
 
+
                 send(
                     chat,
-"""🔥 MevissBOT
+"""🔥 MevissBOT AKTIF
 
 📤 Kirim file
-📥 GET kode
+
+📥 Ambil file:
+GET kode
 
 Contoh:
 GET mevissbot_8v_3p_0d_xxxxx"""
@@ -228,6 +243,7 @@ GET mevissbot_8v_3p_0d_xxxxx"""
 
 
             elif text.startswith("GET "):
+
 
                 code = text.replace(
                     "GET ",
@@ -238,14 +254,24 @@ GET mevissbot_8v_3p_0d_xxxxx"""
                 db = load()
 
 
+
                 if code in db:
+
+
+                    send(
+                        chat,
+                        "⏳ Mengirim file..."
+                    )
+
 
                     send_file(
                         chat,
                         db[code]
                     )
 
+
                 else:
+
 
                     send(
                         chat,
@@ -256,24 +282,30 @@ GET mevissbot_8v_3p_0d_xxxxx"""
 
             else:
 
+
                 file = check_file(msg)
 
 
+
                 if file:
+
 
                     code = make_code()
 
 
                     db = load()
 
+
                     db[code] = file
+
 
                     save(db)
 
 
+
                     send(
                         chat,
-f"""✅ File berhasil disimpan
+f"""✅ File tersimpan
 
 🔑 CODE:
 
@@ -285,12 +317,14 @@ f"""✅ File berhasil disimpan
                     )
 
 
+
     except Exception as e:
 
         print(
             "ERROR:",
             e
         )
+
 
 
     time.sleep(2)
